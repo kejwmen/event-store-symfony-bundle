@@ -26,6 +26,7 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 final class ProophEventStoreExtension extends Extension
 {
     public const TAG_PROJECTION = 'prooph_event_store.projection';
+    public const TAG_REPOSITORY = 'prooph_event_store.projection';
 
     public function getNamespace()
     {

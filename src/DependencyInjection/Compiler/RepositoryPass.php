@@ -1,40 +1,44 @@
 <?php
-/**
- * prooph (http://getprooph.org/)
- *
- * @see       https://github.com/prooph/event-store-symfony-bundle for the canonical source repository
- * @copyright Copyright (c) 2016 prooph software GmbH (http://prooph-software.com/)
- * @license   https://github.com/prooph/event-store-symfony-bundle/blob/master/LICENSE.md New BSD License
- */
-
 declare(strict_types=1);
 
 namespace Prooph\Bundle\EventStore\DependencyInjection\Compiler;
 
 use Prooph\Bundle\EventStore\DependencyInjection\ProophEventStoreExtension;
 use Prooph\Bundle\EventStore\Exception\RuntimeException;
-use Prooph\Bundle\EventStore\Projection\Projection;
-use Prooph\Bundle\EventStore\Projection\ReadModelProjection;
+use Prooph\EventSourcing\Aggregate\AggregateRepository;
 use ReflectionClass;
 use Symfony\Component\DependencyInjection\Compiler\CompilerPassInterface;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 
-final class ProjectorPass implements CompilerPassInterface
+final class RepositoryPass implements CompilerPassInterface
 {
     public function process(ContainerBuilder $container)
     {
-        $projectors = $container->findTaggedServiceIds(ProophEventStoreExtension::TAG_PROJECTION);
+        $repositories = $container->findTaggedServiceIds(ProophEventStoreExtension::TAG_REPOSITORY);
 
-        foreach ($projectors as $id => $projector) {
-            $projectorDefinition = $container->getDefinition($id);
+        foreach ($repositories as $id => $repository) {
+            $definition = $container->getDefinition($id);
 
-            $reflClass = new ReflectionClass($projectorDefinition->getClass());
-            if (! $reflClass->implementsInterface(ReadModelProjection::class) && ! $reflClass->implementsInterface(Projection::class)) {
-                throw new RuntimeException(sprintf('Tagged service "%s" must implement "%s" or "%s" ', $id, ReadModelProjection::class, Projection::class));
+            $reflClass = new ReflectionClass($definition->getClass());
+            if (! $reflClass->isSubclassOf(AggregateRepository::class)) {
+                throw new RuntimeException(sprintf(
+                    'Tagged service "%s" must extend "%s"',
+                    $id,
+                    AggregateRepository::class
+                ));
             }
 
-            $tags = $projectorDefinition->getTag(ProophEventStoreExtension::TAG_PROJECTION);
+            $tags = $definition->getTag(ProophEventStoreExtension::TAG_PROJECTION);
             foreach ($tags as $tag) {
+
+                $repositoryConfig['repository_class'],
+                            new Reference($eventStoreId),
+                            $repositoryConfig['aggregate_type'],
+                            new Reference($repositoryConfig['aggregate_translator']),
+                            $repositoryConfig['snapshot_store'] ? new Reference($repositoryConfig['snapshot_store']) : null,
+                            $repositoryConfig['stream_name'],
+                            $repositoryConfig['one_stream_per_aggregate'],
+
                 if (! isset($tag['projection_name'])) {
                     throw new RuntimeException(sprintf('"projection_name" argument is missing from on "prooph_event_store.projection" tagged service "%s"',
                         $id));
@@ -45,7 +49,7 @@ final class ProjectorPass implements CompilerPassInterface
                         $id));
                 }
 
-                if (in_array(ReadModelProjection::class, class_implements($projectorDefinition->getClass()))) {
+                if (in_array(ReadModelProjection::class, class_implements($definition->getClass()))) {
                     if (! isset($tag['read_model'])) {
                         throw new RuntimeException(sprintf('"read_model" argument is missing from on "prooph_event_store.projection" tagged service "%s"',
                             $id));
